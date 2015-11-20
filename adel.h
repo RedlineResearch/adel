@@ -10,6 +10,7 @@ struct async
 
   bool waiting() const { return kind == WAIT; }
   bool done() const { return kind == DONE; }
+  bool hasvalue() const { return kind == VALUE; }
   
   async() : kind(NONE), value(0) {}
   async(aresult k) : kind(k), value(0) {}
@@ -46,15 +47,14 @@ do {							 \
   } while (0);
 
 #define when(f, x)						\
-  do {								\
-  state=__LINE__;						\
- case __LINE__:							\
- static async R##__LINE__;					\
- R##__LINE__ = f();						\
- if (R##__LINE__.waiting() || R##__LINE__.done())		\
-   return R##__LINE__;						\
- x = R##__LINE__.value;						\
- } while (0);
+    state=__LINE__;						\
+  case __LINE__:						\
+    static async R##__LINE__;					\
+    R##__LINE__ = f();						\
+    if (R##__LINE__.hasvalue())					\
+      x = R##__LINE__.value;					\
+    if (R##__LINE__.waiting())					\
+      return R##__LINE__;
 
 #define together(f1, f2)				\
   do {							\

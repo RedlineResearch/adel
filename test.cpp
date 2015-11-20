@@ -44,13 +44,13 @@ int millis()
 int digitalRead(int pin)
 {
   static int counter = 0;
-  if (counter > 1000 && counter < 1100) {
-    counter++;
-    printf("%9d: read %d from pin %d\n", millis(), HIGH, pin);
+  counter++;
+  if (counter > 1500 && counter < 1700) {
+    // printf("%9d: read %d from pin %d\n", millis(), HIGH, pin);
     return HIGH;
   }
   
-  printf("%9d: read %d from pin %d\n", millis(), LOW, pin);
+  // printf("%9d: read %d from pin %d\n", millis(), LOW, pin);
   return LOW;
 }
 
@@ -97,6 +97,16 @@ async blink300()
   afinish;
 }  
 
+
+/** Examples
+ *
+ *  (1) When the user pushes a button, light an LED for 5 seconds
+ *  (2) While the user holds a button, light an LED
+ *  (3) Blink an LED until the user presses a button
+ */
+
+
+
 /** button
  *  Wait for a button press
  *  NOTE: The semantics of this kind of coroutine doesn't seem quite right
@@ -129,12 +139,9 @@ async button_test()
   static int v = 0;
   when (button, v) {
     printf("Got %d\n", v);
-    digitalWrite(11, HIGH);
-    adelay(300);
-    digitalWrite(11, LOW);
-    adelay(300);
+    seq(blink300);
   }
-
+  
   afinish;
 }
 
@@ -148,9 +155,12 @@ async button_test()
 async test()
 {
   abegin;
+  together(button_test, blink500);
+  /*
   seq(blink300);
   seq(blink500);
   together(blink300, blink500);
+  */
   afinish;
 }
 
