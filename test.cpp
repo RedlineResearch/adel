@@ -61,6 +61,16 @@ void digitalWrite(int pin, int value)
   printf("%9d: write %d to pin %d\n", millis(), value, pin);
 }
 
+/** Accelerometer
+ * Fake numbers for the accelerometer
+ */
+void read_accel(int & x, int & y, int & z)
+{
+  x = 0;
+  y = 0;
+  z = 0;
+}
+
 /** blink500
  *  Blink an LED every 500ms for 10 cycles
  */
@@ -103,29 +113,154 @@ async blink300()
  *  (1) When the user pushes a button, light an LED for 5 seconds
  *  (2) While the user holds a button, light an LED
  *  (3) Blink an LED until the user presses a button
+ *
+ * Introduce a signal idea?
+ * A variable that can change asynchronously? Then we introduce race conditions
+ * 
+
+Viz Timer
+
+ Program mode:
+   blink cursor
+   when user presses the button add a 15s
+   while user holds the button add 1m
+   render (is render a separate thing?)
  */
-
-
 
 /** button
- *  Wait for a button press
- *  NOTE: The semantics of this kind of coroutine doesn't seem quite right
- *        to me. The problem is that we need to know when we're expecting 
- *        a button push; but that's not how buttons work. Need to fix this.
+ *  Check for a button press
  */
+
+#define PRESS 1
+#define RELEASE 2
+#define HOLD 3
+
 async button()
 {
   abegin;
-  while (1) {
+  
+  marker(start);
+  if (digitalRead(6) == HIGH) {
+    adelay(50);
     if (digitalRead(6) == HIGH) {
-      adelay(50);
-      if (digitalRead(6) == HIGH) {
-	while (digitalRead(6) != LOW) {
-	  adelay(20);
+      while (digitalRead(6) != LOW) {
+	adelay(20);
+	if ((since(start) >= 500) &&
+	    (since(start) % 1000)) {
+	  areturn(HOLD);
 	}
-	areturn(99);
       }
+      
+      if (since(start) < 500)
+	areturn(PRESS);
+      
+      if (since(start) >= 500)
+	areturn(RELEASE);
     }
+  }
+  
+  afinish;
+}
+
+async cursor()
+{
+  abegin;
+  
+  adelay(400);
+  areturn(1);
+  adelay(400);
+  areturn(0);
+
+  afinish;
+}
+
+async orient_up()
+{
+  abegin;
+  
+  static int x = 0;
+  static int y = 0;
+  static int z = 0;
+  do {
+    adelay(20);
+    read_accel(x, y, z);
+  } until (x == 0 && y > 200 && z == 0);
+
+  afinish;
+}
+
+async is_orient_down()
+{
+  abegin;
+  
+  static int x = 0;
+  static int y = 0;
+  static int z = 0;
+  do {
+    adelay(20);
+    read_accel(x, y, z);
+  } until (x == 0 && y < -200 && z == 0);
+
+  areturn(1);
+  
+  afinish;
+}
+
+
+void render(int total_time, bool show_cursor)
+{
+  // FastLED stuff here
+}
+
+void finale()
+{
+}
+
+async program()
+{
+  static int total_time = 0;
+  static bool show_cursor = false;
+  static bool done = false;
+
+  abegin;
+  
+  // -- Wait for orientation to be up
+  orient_up();
+
+  // -- Main programming mode loop
+  do {
+    // -- Async check for button: kind of a combination of "together" and "if"
+    when (button, PRESS) {
+      total_time += 15000;
+      render(total_time, show_cursor);
+    }
+    
+    when (button, HOLD) {
+      total_time += 60000;
+      render(total_time, show_cursor);
+    }
+  
+    when (cursor, 1) {
+      render(total_time, show_cursor);
+    }
+
+    when (is_orient_down, 1) {
+      done = true;
+    }
+  } until (done);
+
+  areturn(total_time);
+  afinish;
+}
+
+async viztimer()
+{
+  static int total_time = 0;
+  abegin;
+  while (1) {
+    seqf(program, total_time);
+    // countdown(total_time);
+    // finale();
   }
   afinish;
 }
