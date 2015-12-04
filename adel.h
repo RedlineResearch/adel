@@ -1,7 +1,5 @@
 
-int millis();
-
-enum aresult { NONE, WAIT, DONE, VALUE };
+enum aresult { START, WAIT, DONE, VALUE };
 
 struct async
 {
@@ -11,79 +9,100 @@ struct async
   bool waiting() const { return kind == WAIT; }
   bool done() const { return kind == DONE; }
   bool hasvalue() const { return kind == VALUE; }
+  void reset() { kind = START; }
 
-  async() : kind(NONE), value(0) {}
+  async() : kind(START), value(0) {}
   async(aresult k) : kind(k), value(0) {}
   async(int v) : kind(VALUE), value(v) {}
 };
 
+bool Debug = true;
+
 #define ATOKEN2(X, Y) X ## Y
 #define ATOKEN(X, Y) ATOKEN2(X, Y)
-#define AVAR ATOKEN(AV_, __LINE__)
-#define AVARN(N) ATOKEN(AV##N##_, __LINE__)
+#define AVARNAME(n) ATOKEN(AV_##n##_, __LINE__)
 
-#define marker(V) 					 \
+#define marktime(V) 					 \
   state=__LINE__;					 \
-  static int ATOKEN(T,V) = 0;				 \
+  if (Debug) { Serial.print("State "); Serial.println(state); }	\
+  static unsigned long ATOKEN(T,V) = 0;			 \
   ATOKEN(T,V) = millis();				 \
+  Serial.print("Mark "); Serial.println(ATOKEN(T,V)); \
  case __LINE__:	;
 
 #define since(V) (millis() - ATOKEN(T,V))
 
-#define abegin static int state=0; switch (state) { case 0:
+#define endtime(V) ATOKEN(T,V) = 0;
+
+#define abegin static int state=0; \
+   switch (state) { case 0:
 
 #define adelay(x) {					 \
    state=__LINE__;					 \
-   static int AVAR;					 \
-   AVAR = millis();					 \
+   if (Debug) { Serial.print("State "); Serial.println(state); }	\
+   static unsigned long AVARNAME(1);					 \
+   AVARNAME(1) = millis();					 \
  case __LINE__:						 \
-   if ((millis() - AVAR) < x) return async(WAIT);	 \
+   if ((millis() - AVARNAME(1)) < x) return async(WAIT);	 \
 }
 
-#define areturn(x) {					\
+#define at(t, V)  {					 \
+   state=__LINE__;					 \
+   if (Debug) { Serial.print("State "); Serial.println(state); }	\
+ case __LINE__:						 \
+   if ((millis() - ATOKEN(T,V)) < t) return async(WAIT);
+  
+#define astep(f) {					\
    state=__LINE__;					\
-   return async(x);					\
- case __LINE__:	;				        \
-}
-
-/* Every call to an async function must be made using either seq (for
-   sequential semantics) or together (for parallel semantics. */
-
-#define seq(f) {					\
-   state=__LINE__;					\
+   Serial.print("State "); Serial.println(state); \
  case __LINE__:					        \
-   static async AVAR;					\
-   AVAR = f();						\
-   if (AVAR.waiting()) return async(WAIT);		\
+   static async AVARNAME(1);					\
+   AVARNAME(1) = f();						\
+   if (AVARNAME(1).waiting()) return async(WAIT);		\
 }
 
-#define seqf(f, res) {					\
-   state=__LINE__;					\
- case __LINE__:					        \
-   static async AVAR;					\
-   AVAR = f();						\
-   if (AVAR.waiting()) return async(WAIT);		\
-   if (AVAR.hasvalue()) res = AVAR.value;		\
+#define await(f, res) {					\
+    state=__LINE__;						\
+    if (Debug) { Serial.print("State "); Serial.println(state); }	\
+  case __LINE__:					        \
+    static async AVARNAME(1);					\
+    AVARNAME(1) = f();						\
+    if (AVARNAME(1).waiting()) return async(WAIT);		\
+    if (AVARNAME(1).hasvalue()) res = AVARNAME(1).value;		\
 }
 
-#define when(f, x)					\
-   static async AVAR;					\
-   AVAR = f();						\
-   if (AVAR.hasvalue() && AVAR.value == x)
+#define whenvalue(f, x)						\
+   static async AVARNAME(1);					\
+   AVARNAME(1) = f();						\
+   if (AVARNAME(1).hasvalue() && ((x = AVARNAME(1).value) || true))
 
 /* Our only real form of parallelism: fork-join */
 
 #define together(f1, f2) {						\
     state=__LINE__;							\
+    if (Debug) { Serial.print("State "); Serial.println(state); }	\
   case __LINE__:							\
-    static async AVARN(1);						\
-    static async AVARN(2);						\
-    if ( ! AVARN(1).done()) AVARN(1) = f1();				\
-    if ( ! AVARN(2).done()) AVARN(2) = f2();				\
-    if (AVARN(2).waiting() || AVARN(2).waiting()) return async(WAIT);	\
+    static async AVARNAME(1);						\
+    static async AVARNAME(2);						\
+    if ( ! AVARNAME(1).done()) AVARNAME(1) = f1();				\
+    if ( ! AVARNAME(2).done()) AVARNAME(2) = f2();				\
+    if (AVARNAME(1).waiting() || AVARNAME(2).waiting()) return async(WAIT);	\
+    AVARNAME(1).reset(); AVARNAME(2).reset();				\
 }
 
 #define until(c) while (! (c))
+
+#define ayield(x) {					\
+   state=__LINE__;					\
+   if (Debug) { Serial.print("State "); Serial.println(state); }	\
+   return async(x);					\
+ case __LINE__:	;				        \
+}
+
+#define areturn(x) { \
+  state = 0;	     \
+  return async(x); \
+  }
 
 #define afinish } state = 0; return async(DONE);
 
