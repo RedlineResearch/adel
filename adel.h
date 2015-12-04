@@ -16,7 +16,7 @@ struct async
   async(int v) : kind(VALUE), value(v) {}
 };
 
-bool Debug = true;
+bool Debug = false;
 
 #define ATOKEN2(X, Y) X ## Y
 #define ATOKEN(X, Y) ATOKEN2(X, Y)
@@ -102,7 +102,7 @@ bool Debug = true;
 #define areturn(x) { \
   state = 0;	     \
   return async(x); \
-  }
+}
 
 #define afinish } state = 0; return async(DONE);
 
