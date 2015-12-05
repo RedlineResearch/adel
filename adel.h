@@ -90,7 +90,19 @@ bool Debug = false;
     AVARNAME(1).reset(); AVARNAME(2).reset();				\
 }
 
-#define until(c) while (! (c))
+// Really need a special signal to the function when it gets interrupted
+
+#define until(c, f) { \
+    state=__LINE__;							\
+    if (Debug) { Serial.print("State "); Serial.println(state); }	\
+  case __LINE__:							\
+    static async AVARNAME(1);						\
+    static async AVARNAME(2);						\
+    if ( ! AVARNAME(1).done()) AVARNAME(1) = c();			\
+    if ( ! AVARNAME(2).done()) AVARNAME(2) = f();			\
+    if (AVARNAME(1).waiting()) return async(WAIT);			\
+    AVARNAME(1).reset(); AVARNAME(2).reset();				\
+}
 
 #define ayield(x) {					\
    state=__LINE__;					\
