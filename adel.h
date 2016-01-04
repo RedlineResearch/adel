@@ -1,86 +1,127 @@
 
-enum aresult { START, WAIT, DONE, VALUE };
 
-struct async
+#ifdef ADEL_V2
+
+#define achild1(n) ((n << 1) + 1)
+#define achild2(n) ((n << 1) + 2)
+
+#define AFINALLY 65535
+
+extern uint16_t adel_step[64];
+extern uint32_t adel_wait[64];
+extern uint16_t adel_current;
+
+#define ainit adel_current = 0
+
+#define abegin						\
+  int a_me = adel_current;				\
+  switch (adel_step[a_me]) { 				\
+  case 0:
+
+#define adelay(t)					\
+    adel_step[a_me] = __LINE__;				\
+    adel_wait[a_me] = millis() + t;			\
+  case __LINE__:					\
+  if (millis() < adel_wait[a_me]) return true;
+
+#define astep( f )					\
+    adel_step[a_me] = __LINE__;				\
+    adel_step[achild1(a_me)] = 0;			\
+  case __LINE__:					\
+    adel_current = achild1(a_me);			\
+    if ( f ) return true;
+
+#define atogether( f , g )				\
+    adel_step[a_me] = __LINE__;				\
+    adel_step[achild1(a_me)] = 0;			\
+    adel_step[achild2(a_me)] = 0;			\
+  case __LINE__:					\
+    adel_current = achild1(a_me);			\
+    if ( f ) {						\
+      adel_current = achild2(a_me);			\
+      if ( g ) return true;				\
+    }
+
+#define auntil(c , f )					\
+    adel_step[a_me] = __LINE__;				\
+    adel_step[achild1(a_me)] = 0;			\
+    adel_step[achild2(a_me)] = 0;			\
+  case __LINE__:					\
+    adel_current = achild1(a_me);			\
+    if ( c ) {						\
+      adel_current = achild2(a_me);			\
+      f;						\
+      return true;					\
+    }							\
+    adel_step[achild2(a_me)] = AFINALLY;		\
+    adel_current = achild2(a_me);			\
+    f;
+
+#define afinally case AFINALLY: 
+
+#define aend						\
+  }							\
+  adel_step[a_me] = AFINALLY;				\
+  return false;
+
+#endif
+
+#ifdef ADEL_V1
+
+enum astate { START, WAIT, DONE };
+
+struct adel
 {
-  aresult kind;
+  astate state;
   int value;
 
-  bool waiting() const { return kind == WAIT; }
-  bool done() const { return kind == DONE; }
-  bool hasvalue() const { return kind == VALUE; }
-  void reset() { kind = START; }
+  bool waiting() const { return state == WAIT; }
+  bool done() const { return state == DONE; }
+  void start() { state = START; }
 
-  async() : kind(START), value(0) {}
-  async(aresult k) : kind(k), value(0) {}
-  async(int v) : kind(VALUE), value(v) {}
+  async() : state(START), value(0) {}
+  async(astate k) : state(k), value(0) {}
+  async(int v) : state(VALUE), value(v) {}
 };
 
 bool Debug = false;
 
-#define ATOKEN2(X, Y) X ## Y
-#define ATOKEN(X, Y) ATOKEN2(X, Y)
-#define AVARNAME(n) ATOKEN(AV_##n##_, __LINE__)
+#define ainput adel& astatus
 
-#define marktime(V) 					 \
-  state=__LINE__;					 \
-  if (Debug) { Serial.print("State "); Serial.println(state); }	\
-  static unsigned long ATOKEN(T,V) = 0;			 \
-  ATOKEN(T,V) = millis();				 \
-  Serial.print("Mark "); Serial.println(ATOKEN(T,V)); \
- case __LINE__:	;
+#define abegin						\
+  static int step=0;					\
+  static unsigned long start_time = 0;			\
+  static unsigned long continue_at = 0;			\
+  static adel status1, status2;				\
+  switch (step) { case 0: start_time = millis();
 
-#define since(V) (millis() - ATOKEN(T,V))
+#define adelay(t)						\
+   step=__LINE__;						\
+   if (Debug) { Serial.print("Step "); Serial.println(step); }	\
+   continue_at = millis() + t;					\
+ case __LINE__:							\
+   if (millis() < continue_at) return adel(WAIT);
 
-#define endtime(V) ATOKEN(T,V) = 0;
-
-#define abegin static int state=0; \
-   switch (state) { case 0:
-
-#define adelay(x) {					 \
-   state=__LINE__;					 \
-   if (Debug) { Serial.print("State "); Serial.println(state); }	\
-   static unsigned long AVARNAME(1);					 \
-   AVARNAME(1) = millis();					 \
- case __LINE__:						 \
-   if ((millis() - AVARNAME(1)) < x) return async(WAIT);	 \
-}
-
-#define at(t, V)  {					 \
-   state=__LINE__;					 \
-   if (Debug) { Serial.print("State "); Serial.println(state); }	\
- case __LINE__:						 \
-   if ((millis() - ATOKEN(T,V)) < t) return async(WAIT);
+#define at(t)							\
+   state=__LINE__;						\
+   if (Debug) { Serial.print("Step "); Serial.println(step); }	\
+   continue_at = start_time + t;				\
+ case __LINE__:							\
+   if (millis() < continue_at) return adel(WAIT);
   
-#define astep(f) {					\
-   state=__LINE__;					\
-   Serial.print("State "); Serial.println(state); \
- case __LINE__:					        \
-   static async AVARNAME(1);					\
-   AVARNAME(1) = f();						\
-   if (AVARNAME(1).waiting()) return async(WAIT);		\
-}
-
-#define await(f, res) {					\
-    state=__LINE__;						\
-    if (Debug) { Serial.print("State "); Serial.println(state); }	\
+#define astep(f) 						\
+   state=__LINE__;						\
+   Serial.print("State "); Serial.println(state);		\
   case __LINE__:					        \
-    static async AVARNAME(1);					\
-    AVARNAME(1) = f();						\
-    if (AVARNAME(1).waiting()) return async(WAIT);		\
-    if (AVARNAME(1).hasvalue()) res = AVARNAME(1).value;		\
-}
-
-#define whenvalue(f, x)						\
-   static async AVARNAME(1);					\
-   AVARNAME(1) = f();						\
-   if (AVARNAME(1).hasvalue() && ((x = AVARNAME(1).value) || true))
+   status1 = f;							\
+   if (status1.waiting()) return async(WAIT);		
 
 /* Our only real form of parallelism: fork-join */
 
 #define together(f1, f2) {						\
     state=__LINE__;							\
     if (Debug) { Serial.print("State "); Serial.println(state); }	\
+    status1.
   case __LINE__:							\
     static async AVARNAME(1);						\
     static async AVARNAME(2);						\
@@ -118,3 +159,4 @@ bool Debug = false;
 
 #define afinish } state = 0; return async(DONE);
 
+#endif
