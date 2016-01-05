@@ -1,4 +1,7 @@
 
+#include <stdint.h>
+
+#define ADEL_V2
 
 #ifdef ADEL_V2
 
@@ -10,6 +13,8 @@
 extern uint16_t adel_step[64];
 extern uint32_t adel_wait[64];
 extern uint16_t adel_current;
+
+#define adel bool
 
 #define ainit adel_current = 0
 
