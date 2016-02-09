@@ -40,12 +40,12 @@ extern uint16_t adel_current;
     adel_step[a_me] = __LINE__;				\
     adel_step[achild1(a_me)] = 0;			\
     adel_step[achild2(a_me)] = 0;			\
-  case __LINE__:					\
+  case __LINE__: {					\
     adel_current = achild1(a_me);			\
-    if ( f ) {						\
-      adel_current = achild2(a_me);			\
-      if ( g ) return true;				\
-    }
+    bool f_continue = f;				\
+    adel_current = achild2(a_me);			\
+    bool g_continue = g;				\
+    if (f_continue || g_continue) return true;   }
 
 #define auntil(c , f )					\
     adel_step[a_me] = __LINE__;				\
@@ -57,10 +57,7 @@ extern uint16_t adel_current;
       adel_current = achild2(a_me);			\
       f;						\
       return true;					\
-    }							\
-    adel_step[achild2(a_me)] = AFINALLY;		\
-    adel_current = achild2(a_me);			\
-    f;
+    }
 
 #define aunless(c , f )					\
     adel_step[a_me] = __LINE__;				\
@@ -70,18 +67,12 @@ extern uint16_t adel_current;
     adel_current = achild1(a_me);			\
     if ( c ) {						\
       adel_current = achild2(a_me);			\
-      f;						\
+      if ( f ) {					\
       return true;					\
-    }							\
-    adel_step[achild2(a_me)] = AFINALLY;		\
-    adel_current = achild2(a_me);			\
-    f;
-
-#define afinally case AFINALLY: 
+    }
 
 #define aend						\
   }							\
-  adel_step[a_me] = AFINALLY;				\
   return false;
 
 #endif
