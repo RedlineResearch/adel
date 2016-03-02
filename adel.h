@@ -8,17 +8,33 @@ extern uint16_t adel_step[64];
 extern uint32_t adel_wait[64];
 extern uint16_t adel_current;
 
-#define achild(c) adel_step[(a_me << 1) + c];
+#define achild(c) adel_step[(a_me << 1) + c]
 
-#define ADEL_FINISH 99999
+#define ADEL_FINALLY 99999
 
 /** adel
  * 
- *  All Adel functions return a bool: true means the function is still
- *  executing, false means it is done.
+ *  All Adel functions return an enum that indicates whether the routine is
+ *  done or has more work to do.
  */
-#define adel bool
-
+class Adel
+{
+public:
+  typedef enum { NONE, DONE, CONT } _state;
+  
+private:
+  _state _value;
+  
+public:
+  Adel(_state s) : _value(s) {}
+  Adel() : _value(NONE) {}
+  Adel(const Adel& other) : _value(other._value) {}
+  explicit Adel(bool b) : _value(NONE) {}
+  
+  bool done() const { return _value == DONE; }
+  bool cont() const { return _value == CONT; }
+};
+  
 /** ainit
  *
  *  Call at the beginning of the loop() function 
@@ -30,16 +46,16 @@ extern uint16_t adel_current;
  * Always add abegin and aend to every adel function
  */
 #define abegin						\
-  bool f_continue, g_continue;				\
+  Adel f_state, g_state;				\
   int a_me = adel_current;				\
   switch (adel_step[a_me]) { 				\
   case 0:
 
 #define aend						\
-  case ADEL_DONE:
+  case ADEL_FINALLY: ;					\
   }							\
-  adel_step[a_me] = ADEL_DONE;
-  return false;
+  adel_step[a_me] = ADEL_FINALLY;			\
+  return Adel::DONE;
 
 /** afinally
  *
@@ -49,9 +65,10 @@ extern uint16_t adel_current;
 #define afinally( f )					\
     adel_step[a_me] = __LINE__;				\
     adel_step[achild(1)] = 0;				\
-  case ADEL_DONE:					\
+  case ADEL_FINALLY:					\
     adel_current = achild(1);				\
-    if ( f ) return true;    
+    f_state = f;					\
+    if ( f_state.cont() ) return Adel::CONT;
 
 /** adelay
  *
@@ -61,7 +78,7 @@ extern uint16_t adel_current;
     adel_step[a_me] = __LINE__;				\
     adel_wait[a_me] = millis() + t;			\
   case __LINE__:					\
-    if (millis() < adel_wait[a_me]) return true;
+  if (millis() < adel_wait[a_me]) return Adel::CONT;
 
 /** andthen
  *
@@ -73,9 +90,10 @@ extern uint16_t adel_current;
 #define andthen( f )					\
     adel_step[a_me] = __LINE__;				\
     adel_step[achild(1)] = 0;				\
-  case __LINE__:					\
+ case __LINE__:						\
     adel_current = achild(1);				\
-    if ( f ) return true;
+    f_state = f;					\
+    if ( f_state.cont() ) return Adel::CONT;
 
 /** aboth
  *
@@ -89,10 +107,10 @@ extern uint16_t adel_current;
     adel_step[achild(2)] = 0;				\
   case __LINE__: {					\
     adel_current = achild(1);				\
-    f_continue = f;					\
+    f_state = f;					\
     adel_current = achild(2);				\
-    g_continue = g;					\
-    if (f_continue || g_continue) return true;   }
+    g_state = g;					\
+    if (f_state.cont() || g_state.cont()) return Adel::CONT;   }
 
 /** auntileither
  *
@@ -113,11 +131,11 @@ extern uint16_t adel_current;
     adel_step[achild(2)] = 0;				\
   case __LINE__: {					\
     adel_current = achild(1);				\
-    f_continue = f;					\
+    f_state = f;					\
     adel_current = achild(2);				\
-    g_continue = g;					\
-    if (f_continue && g_continue) return true;   }      \
-    if ( ! f_continue)
+    g_state = g;					\
+    if (f_state.cont() && g_state.cont()) return Adel::CONT;   }      \
+    if (f_state.done())
 
 /** areturn
  * 
@@ -125,7 +143,7 @@ extern uint16_t adel_current;
  *  caller that it is done.
  */
 #define areturn				   \
-    adel_step[a_me] = ADEL_DONE;	   \
-    return true;
+    adel_step[a_me] = ADEL_FINALLY;	   \
+    return Adel::CONT;
 
 #endif
