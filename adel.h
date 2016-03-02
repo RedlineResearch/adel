@@ -5,69 +5,110 @@
 
 #ifdef ADEL_V2
 
-#define achild1(n) ((n << 1) + 1)
-#define achild2(n) ((n << 1) + 2)
-
-#define AFINALLY 65535
-
 extern uint16_t adel_step[64];
 extern uint32_t adel_wait[64];
 extern uint16_t adel_current;
 
+#define achild(c) adel_step[(a_me << 1) + c];
+
+/** adel
+ * 
+ *  All Adel functions return a bool: true means the function is still
+ *  executing, false means it is done.
+ */
 #define adel bool
 
+/** ainit
+ *
+ *  Call at the beginning of the loop() function 
+ */
 #define ainit adel_current = 0
 
+/** abegin
+ *
+ * Always add abegin and aend to every adel function
+ */
 #define abegin						\
+  bool f_continue, g_continue;				\
   int a_me = adel_current;				\
   switch (adel_step[a_me]) { 				\
   case 0:
 
+/** adelay
+ *
+ *  Semantics: delay this function for t milliseconds
+ */
 #define adelay(t)					\
     adel_step[a_me] = __LINE__;				\
     adel_wait[a_me] = millis() + t;			\
   case __LINE__:					\
   if (millis() < adel_wait[a_me]) return true;
 
-#define astep( f )					\
+/** andthen
+ *
+ *  Semantics: execute f synchronously, until it is done (returns false)
+ *  Example use:
+ *     andthen( turn_on_light() );
+ *     andthen( turn_off_light() );
+ */
+#define andthen( f )					\
     adel_step[a_me] = __LINE__;				\
-    adel_step[achild1(a_me)] = 0;			\
+    adel_step[achild(1)] = 0;				\
   case __LINE__:					\
-    adel_current = achild1(a_me);			\
+    adel_current = achild(1);				\
     if ( f ) return true;
 
-#define atogether( f , g )				\
+/** aboth
+ *
+ *  Semantics: execute f and g asynchronously, until *both* are done
+ *  (both return false). Example use:
+ *      atogether( flash_led(), play_sound() );
+ */
+#define auntilboth( f , g )				\
     adel_step[a_me] = __LINE__;				\
-    adel_step[achild1(a_me)] = 0;			\
-    adel_step[achild2(a_me)] = 0;			\
+    adel_step[achild(1)] = 0;				\
+    adel_step[achild(2)] = 0;				\
   case __LINE__: {					\
-    adel_current = achild1(a_me);			\
-    bool f_continue = f;				\
-    adel_current = achild2(a_me);			\
-    bool g_continue = g;				\
+    adel_current = achild(1);				\
+    f_continue = f;					\
+    adel_current = achild(2);				\
+    g_continue = g;					\
     if (f_continue || g_continue) return true;   }
 
-#define auntil(c , f )					\
+/** auntil
+ *
+ *  Semantics: execute c and f asynchronously until either one of them
+ *  finishes (contrast with atogether). Example use:
+ *     auntil( button(), flash_led() );
+ */
+#define auntileither( f , g )				\
+    adel_step[a_me] = __LINE__;				\
+    adel_step[achild(1)] = 0;				\
+    adel_step[achild(2)] = 0;				\
+  case __LINE__: {					\
+    adel_current = achild(1);				\
+    f_continue = f;					\
+    adel_current = achild(2);				\
+    g_continue = g;					\
+    if (f_continue && g_continue) return true;   }      \
+    if ( ! f_continue)
+
+/** aeveryuntil
+ *
+ *  Semantics: execute f every t milliseconds 
+ */
+#define aevery( t )					\
     adel_step[a_me] = __LINE__;				\
     adel_step[achild1(a_me)] = 0;			\
     adel_step[achild2(a_me)] = 0;			\
+    adel_wait[a_me] = millis() + t;			\
   case __LINE__:					\
     adel_current = achild1(a_me);			\
     if ( c ) {						\
+      if (millis() < adel_wait[a_me]) return true;      \
       adel_current = achild2(a_me);			\
       f;						\
-      return true;					\
-    }
-
-#define aunless(c , f )					\
-    adel_step[a_me] = __LINE__;				\
-    adel_step[achild1(a_me)] = 0;			\
-    adel_step[achild2(a_me)] = 0;			\
-  case __LINE__:					\
-    adel_current = achild1(a_me);			\
-    if ( c ) {						\
-      adel_current = achild2(a_me);			\
-      if ( f ) {					\
+      adel_wait[a_me] += t;                             \
       return true;					\
     }
 
