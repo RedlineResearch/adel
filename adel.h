@@ -110,7 +110,8 @@ public:
     f_state = f;					\
     adel_current = achild(2);				\
     g_state = g;					\
-    if (f_state.cont() || g_state.cont()) return Adel::CONT;   }
+    if (f_state.cont() || g_state.cont())		\
+      return Adel::CONT;   }
 
 /** auntileither
  *
@@ -134,7 +135,8 @@ public:
     f_state = f;					\
     adel_current = achild(2);				\
     g_state = g;					\
-    if (f_state.cont() && g_state.cont()) return Adel::CONT;   }      \
+    if (f_state.cont() && g_state.cont())		\
+      return Adel::CONT;   }				\
     if (f_state.done())
 
 /** areturn
