@@ -1,38 +1,48 @@
 # adel
 A new way to program microcontrollers
 
-Adel is a library that makes it easier to program microcontrollers, such as the Arduino. The main idea is to provide a simple kind of concurrency, similar to coroutines. Using Adel, any function can be made into an asynchronous function, which can be called concurrently with other Adel functions without interfering with them. The library is implemented entirely as a set of C/C++ macros, so it requires no new compiler tools or flags. Just download and install the Adel directory in your Arduino IDE libraries folder.
+Adel is a library that makes it easier to program microcontrollers, such as the Arduino. The main idea is to provide a simple kind of concurrency, similar to coroutines. Using Adel, any function can be made to behave in an asynchronous way, allowing it to run concurrently with other Adel functions without interfering with them. The library is implemented entirely as a set of C/C++ macros, so it requires no new compiler tools or flags. Just download the Adel directory and install it in your Arduino IDE libraries folder.
 
-Adel came out of my particular frustration with microcontroller programming: seemingly simple behavior can be very hard to implement. As a simple example, imagine a function that blinks an LED attached to some pin every N milliseconds:
+Adel came out of my frustration with microcontroller programming. In particular, that seemingly simple behavior can be very hard to implement. As a simple example, imagine a function that blinks an LED attached to some pin every N milliseconds:
 
-     void blink(int some_pin, int N) {
-       while (1) {
-         digitalWrite(some_pin, HIGH);
-         delay(N);
-         digitalWrite(some_pin, LOW);
-         delay(N);
-        }
-      }
-
-OK, that's easy enough. I can call it will two different values, say 500 and 300:
-
-    blink(3, 500);
-    blink(4, 300);
-
-But what if I want to blink them **at the same time**? Now, suddenly, I have no composability. I have to write completely different, and much more complex code:
-
-    uint32_t t = millis();
-    if (t - last300 > 300) {
-      if (pin3_on) digitalWrite(3, LOW);
-      else digitalWrite(3, HIGH);
-      last300 = t;
+    void blink(int some_pin, int N) {
+       digitalWrite(some_pin, HIGH);
+       delay(N);
+       digitalWrite(some_pin, LOW);
+       delay(N);
     }
-    if (t - last500 > 500) {
-      ... etc ...
 
-Similar problems arise with input as well: I might want to check for a button (including debouncing the signal) while blinking a light. The central problem is the `delay()` function, which makes timing easy, but blocks the whole processor. So, the key feature of Adel is an asynchronous delay function called `adelay` (hence the name Adel). The `adelay` function works just like `delay`, but allows other code to run concurrently. 
+OK, that's easy enough. I can call it will two different values, say 500ms and 300ms:
 
-Concurrency in Adel works on the function granularity, using a fork-join style of parallelism. Adel functions are defined in a stylized way, and can use any of the Adel library routines. In addition to `adelay`, the following routines are supported:
+    for (int i = 0; i < 100; i++) blink(3, 500);
+    for (int i = 0; i < 100; i++) blink(4, 300);
+
+But what if I want to blink them **at the same time**? Now, suddenly, I have lost composability. This code doesn't work:
+
+    for (int i = 0; i < 100; i++) {
+      blink(3, 500);
+      blink(4, 300);
+    }
+
+To get **concurrent** behavior I have to write completely different code, which makes the scheduling explicit:
+
+    int last300, last500;
+    loop() {
+      uint32_t t = millis();
+      if (t - last300 > 300) {
+        if (pin3_on) digitalWrite(3, LOW);
+        else digitalWrite(3, HIGH);
+        last300 = t;
+      }
+      if (t - last500 > 500) {
+        ... etc ...
+     }
+
+Aside from the obvious complexity of this code, there are a couple of specific problems. First, all behaviors that might occur concurrently must be part of the same loop with the same timing control. The modularity is completely gone. Second, we need to introduce a global variable for each behavior that remembers the last time it executed. The code would become significantly more complex if we wanted to blink the lights for a specific amount of time, or if we had other modes where the lights are not blinking. Similar problems arise with input as well. Imagine if we want to blink a light until a button is pressed (inluding debouncing the button signal). 
+
+The central problem is the `delay()` function, which makes timing easy for individual behaviors, but blocks the whole processor. The key feature of Adel, therefore, is an asynchronous delay function called `adelay` (hence the name Adel). The `adelay` function works just like `delay`, but allows other code to run concurrently. 
+
+Concurrency in Adel works on the function granularity, using a fork-join style of parallelism. Adel functions are defined in a stylized way, and can use any of the Adel library routines shown below:
 
 * `aboth( f , g )` : run Adel functions f and g concurrently until they **both** finish.
 * `auntileither( f , g )` : run Adel functions f and g concurrently until **one** of them finishes.
@@ -41,7 +51,8 @@ Concurrency in Adel works on the function granularity, using a fork-join style o
 
 Using these routines we can rewrite the blink routine:
 
-    Adel blink(int some_pin, int N) {
+    Adel blink(int some_pin, int N) 
+    {
       abegin;
       while (1) {
         digitalWrite(some_pin, HIGH);
@@ -52,7 +63,7 @@ Using these routines we can rewrite the blink routine:
       aend;
     }
 
-Every Adel function must have a minimum of three things: return type `Adel`, and macros `abegin` and `aend` at the begining and end of the function. But otherwise, the code is almost identical. The key feature is that we can run blink concurrently, like this:
+Every Adel function contains a minimum of three things: return type `Adel`, and macros `abegin` and `aend` at the begining and end of the function. But otherwise, the code is almost identical. The key feature is that we can run blink concurrently, like this:
 
     aboth( blink(3, 500), blink(4, 500) );
 
@@ -65,7 +76,7 @@ This code does exactly what we want: it blinks the two lights at different inter
     }
     Adel button_or_timeout() {
       abegin;
-      auntileither( button(), timeout(2000) ) {
+      auntileither( button(9), timeout(2000) ) {
         // -- Button was pushed (button() finished fist)
       } else {
         // -- Timeout finished first
@@ -73,3 +84,23 @@ This code does exactly what we want: it blinks the two lights at different inter
     }
 
 Notice that the `auntileither` macro is set up to look like a control structure, which allows it to have arbitrary code for handling to two cases (which routine finished first).
+
+Here is the `button()` function, which returns if the user pushes a button:
+
+    Adel button(int pin)
+    {
+      abegin;
+      // -- Wait for a high signal
+      while (digitalRead(pin) != HIGH) {
+        adelay(20);
+      }
+      // -- Wait 50ms and then check again
+      adelay(50);
+      if (digitalRead(pin) == HIGH) {
+        // -- Still pressed, wait until it is released
+        while (digitalRead(pin) != LOW) {
+          adelay(20);
+        }
+      }
+      aend;
+    }
