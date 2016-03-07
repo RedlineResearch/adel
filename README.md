@@ -34,9 +34,9 @@ Similar problems arise with input as well: I might want to check for a button (i
 
 Concurrency in Adel works on the function granularity, using a fork-join style of parallelism. Adel functions are defined in a stylized way, and can use any of the Adel library routines. In addition to `adelay`, the following routines are supported:
 
-`aboth( f , g )` : run Adel functions f and g concurrently until they **both** finish.
-`auntileither( f , g )` : runt Adel functions f and g concurrently until **one** of them finishes.
-`andthen( f )` : run Adel function f to completion before continuing.
+* `aboth( f , g )` : run Adel functions f and g concurrently until they **both** finish.
+* `auntileither( f , g )` : runt Adel functions f and g concurrently until **one** of them finishes.
+* `andthen( f )` : run Adel function f to completion before continuing.
 
 Using these routines we can rewrite the blink routine:
 
