@@ -35,11 +35,14 @@ public:
   bool cont() const { return _value == CONT; }
 };
   
-/** ainit
+/** astart
  *
- *  Call at the beginning of the loop() function 
+ *  Use astart in the Arduino loop function to initiate the Adel function f
+ *  (and run all Adel functions below it).
  */
-#define ainit adel_current = 0
+#define astart( f ) \
+  adel_current = 0; \
+  f;
 
 /** abegin
  *
