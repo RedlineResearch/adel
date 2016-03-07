@@ -3,6 +3,8 @@ A new way to program microcontrollers
 
 Adel is a library that makes it easier to program microcontrollers, such as the Arduino. The main idea is to provide a simple kind of concurrency, similar to coroutines. Using Adel, any function can be made to behave in an asynchronous way, allowing it to run concurrently with other Adel functions without interfering with them. The library is implemented entirely as a set of C/C++ macros, so it requires no new compiler tools or flags. Just download the Adel directory and install it in your Arduino IDE libraries folder.
 
+## Overview and examples
+
 Adel came out of my frustration with microcontroller programming. In particular, that seemingly simple behavior can be very hard to implement. As a simple example, imagine a function that blinks an LED attached to some pin every N milliseconds:
 
     void blink(int some_pin, int N) {
@@ -104,3 +106,9 @@ Here is the `button()` function, which returns if the user pushes a button:
       }
       aend;
     }
+
+## WARNINGS
+
+(1) Be very careful using local variables inside Adel functions. The main implementation technique involves re-entering functions multiple times as they make progress, so the values of local variables are not preserved across asynchronous operations (like `adelay`).
+
+(2) Be very careful using `switch` and `break` inside Adel functions. The co-routine implementation encloses all function bodies in a giant switch statement to allow them to be reentrant. Adding other switch and break statements can have unpredictable results.
