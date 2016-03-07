@@ -37,6 +37,7 @@ Concurrency in Adel works on the function granularity, using a fork-join style o
 * `aboth( f , g )` : run Adel functions f and g concurrently until they **both** finish.
 * `auntileither( f , g )` : runt Adel functions f and g concurrently until **one** of them finishes.
 * `andthen( f )` : run Adel function f to completion before continuing.
+* `areturn` : finish executing the current function
 
 Using these routines we can rewrite the blink routine:
 
@@ -51,18 +52,18 @@ Using these routines we can rewrite the blink routine:
       aend;
     }
 
-Note the `abegin` and `aend` macros: they provide critical code that make concurrency possible. But otherwise, the code is almost identical. The key feature is that we can run blink concurrently, like this:
+Every Adel function must have a minimum of three things: return type `Adel`, and macros `abegin` and `aend` at the begining and end of the function. But otherwise, the code is almost identical. The key feature is that we can run blink concurrently, like this:
 
     aboth( blink(3, 500), blink(4, 500) );
 
-This code does exactly what we want: it blinks the two lights at different intervals at the same time. We can use the `auntileither` macro to call two routines and check which one finished first. This macro is useful for things like timeouts:
+This code does exactly what we want: it blinks the two lights at different intervals at the same time. We can aluse the `auntileither` macro to call two routines and check which one finished first. This macro is useful for things like timeouts:
 
     Adel timeout(int ms) {
       abegin;
       adelay(ms);
       end;
     }
-    Adel checkbutton() {
+    Adel button_or_timeout() {
       abegin;
       auntileither( button(), timeout(2000) ) {
         // -- Button was pushed (button() finished fist)
