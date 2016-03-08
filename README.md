@@ -44,7 +44,7 @@ Aside from the obvious complexity of this code, there are a couple of specific p
 
 The central problem is the `delay()` function, which makes timing easy for individual behaviors, but blocks the whole processor. The key feature of Adel, therefore, is an asynchronous delay function called `adelay` (hence the name Adel). The `adelay` function works just like `delay`, but allows other code to run concurrently. 
 
-Concurrency in Adel works on the function granularity, using a fork-join style of parallelism. Adel functions are defined in a stylized way, and can use any of the Adel library routines shown below:
+Concurrency in Adel is specified at the function granularity, using a fork-join style of parallelism. Functions are designated as "Adel functions" by defining them in a stylized way. The body of the function can use any of the Adel library routines shown below:
 
 * `aboth( f , g )` : run Adel functions f and g concurrently until they **both** finish.
 * `auntileither( f , g )` : run Adel functions f and g concurrently until **one** of them finishes.
