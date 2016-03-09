@@ -5,7 +5,7 @@ Adel is a library that makes it easier to program microcontrollers, such as the 
 
 ## Overview and examples
 
-Adel came out of my frustration with microcontroller programming. In particular, that seemingly simple behavior can be very hard to implement. As a simple example, imagine a function that blinks an LED attached to some pin every N milliseconds:
+Adel came out of my frustration with microcontroller programming. In particular, that seemingly simple behavior can be very hard to implement. As an example, consider a function that blinks an LED attached to some pin every N milliseconds:
 
     void blink(int some_pin, int N) {
        digitalWrite(some_pin, HIGH);
@@ -14,7 +14,7 @@ Adel came out of my frustration with microcontroller programming. In particular,
        delay(N);
     }
 
-OK, that's easy enough. I can call it will two different values, say 500ms and 300ms:
+OK, that's easy enough. I can call it with two different values, say 500ms and 300ms:
 
     for (int i = 0; i < 100; i++) blink(3, 500);
     for (int i = 0; i < 100; i++) blink(4, 300);
