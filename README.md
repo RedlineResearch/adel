@@ -76,6 +76,7 @@ This code does exactly what we want: it blinks the two lights at different inter
       adelay(ms);
       end;
     }
+    
     Adel button_or_timeout() {
       abegin;
       auntileither( button(9), timeout(2000) ) {
@@ -96,6 +97,7 @@ Here is the `button()` function, which returns if the user pushes a button:
       while (digitalRead(pin) != HIGH) {
         adelay(20);
       }
+      
       // -- Wait 50ms and then check again
       adelay(50);
       if (digitalRead(pin) == HIGH) {
