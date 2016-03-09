@@ -98,6 +98,14 @@ public:
     f_state = f;					\
     if ( f_state.cont() ) return Adel::CONT;
 
+/** await
+ *  Wait asynchronously for a condition to become true.
+ */
+#define await( c )					\
+    adel_step[a_me] = __LINE__;				\
+ case __LINE__:						\
+    if ( ! ( c ) ) return Adel::CONT
+
 /** aboth
  *
  *  Semantics: execute f and g asynchronously, until *both* are done
