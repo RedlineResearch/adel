@@ -74,7 +74,7 @@ This code does exactly what we want: it blinks the two lights at different inter
     Adel timeout(int ms) {
       abegin;
       adelay(ms);
-      end;
+      aend;
     }
     
     Adel button_or_timeout() {
@@ -84,6 +84,7 @@ This code does exactly what we want: it blinks the two lights at different inter
       } else {
         // -- Timeout finished first
       }
+      aend;
     }
 
 Notice that the `auntileither` macro is set up to look like a control structure, which allows it to have arbitrary code for handling to two cases (which routine finished first).
@@ -114,3 +115,5 @@ Here is the `button()` function, which returns if the user pushes a button:
 (1) Be very careful using local variables inside Adel functions. The main implementation technique involves re-entering functions multiple times as they make progress, so the values of local variables are not preserved across asynchronous operations (like `adelay`).
 
 (2) Be very careful using `switch` and `break` inside Adel functions. The co-routine implementation encloses all function bodies in a giant switch statement to allow them to be reentrant. Adding other switch and break statements can have unpredictable results.
+
+(3) The internal stack that keeps track of concurrent functions has a limited depth -- currently hard-wired to 6. Going beyond six levels deep will cause an array overflow.
