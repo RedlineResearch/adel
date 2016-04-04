@@ -23,16 +23,16 @@ public:
   typedef enum { NONE, DONE, CONT } _state;
   
 private:
-  _state _value;
+  _state m_state;
   
 public:
-  Adel(_state s) : _value(s) {}
-  Adel() : _value(NONE) {}
-  Adel(const Adel& other) : _value(other._value) {}
-  explicit Adel(bool b) : _value(NONE) {}
+  Adel(_state s) : m_state(s) {}
+  Adel() : m_state(NONE) {}
+  Adel(const Adel& other) : m_state(other.m_state) {}
+  explicit Adel(bool b) : m_state(NONE) {}
   
-  bool done() const { return _value == DONE; }
-  bool cont() const { return _value == CONT; }
+  bool done() const { return m_state == DONE; }
+  bool cont() const { return m_state == CONT; }
 };
   
 /** astart
@@ -106,6 +106,17 @@ public:
  case __LINE__:						\
     if ( ! ( c ) ) return Adel::CONT
 
+/** adountil
+ *
+ *  Semantics: do f until it completes, or until the timeout
+ */
+#define adountil( t, f )				\
+    adel_step[a_me] = __LINE__;				\
+    adel_wait[a_me] = millis() + t;			\
+  case __LINE__:					\
+    f_state = f;					\
+    if (f_state.cont() && millis() < adel_wait[a_me]) return Adel::CONT;
+
 /** aboth
  *
  *  Semantics: execute f and g asynchronously, until *both* are done
@@ -141,13 +152,13 @@ public:
     adel_step[a_me] = __LINE__;				\
     adel_step[achild(1)] = 0;				\
     adel_step[achild(2)] = 0;				\
-  case __LINE__: {					\
+  case __LINE__: 					\
     adel_current = achild(1);				\
     f_state = f;					\
     adel_current = achild(2);				\
     g_state = g;					\
     if (f_state.cont() && g_state.cont())		\
-      return Adel::CONT;   }				\
+      return Adel::CONT;				\
     if (f_state.done())
 
 /** areturn
